@@ -13,7 +13,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: ./
+        working-directory: ./terraform
 
     env:
       ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
