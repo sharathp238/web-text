@@ -1,0 +1,141 @@
+---
+- name: Provision Local DevOps Environment Tools on Ubuntu
+  hosts: localhost
+  connection: local
+  become: true
+
+  tasks:
+    # 1. Update APT cache and install dependencies
+    - name: Update apt cache and install essential prerequisites
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - apt-transport-https
+        state: present
+        update_cache: true
+
+    # ==========================================
+    # DOCKER ENGINE
+    # ==========================================
+
+    - name: Create keyring directory for GPG keys
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Add Docker's official GPG key
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: '0644'
+
+    - name: Add Docker APT repository
+      ansible.builtin.apt_repository:
+        repo: "deb [arch={{ ansible_architecture | replace('x86_64', 'amd64') }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Install Docker Engine and CLI
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: latest
+        update_cache: true
+
+    - name: Ensure Docker service is running and enabled
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    # ==========================================
+    # TASK CLI
+    # ==========================================
+
+    - name: Check if Task CLI is installed
+      ansible.builtin.command: which task
+      register: task_check
+      failed_when: false
+      changed_when: false
+
+    - name: Install Task CLI via official install script
+      ansible.builtin.shell:
+        cmd: curl -sL https://taskfile.dev/install.sh | sh -s -- -b /usr/local/bin
+      when: task_check.rc != 0
+
+    # ==========================================
+    # DOPPLER CLI
+    # ==========================================
+
+    - name: Check if Doppler CLI is installed
+      ansible.builtin.command: which doppler
+      register: doppler_check
+      failed_when: false
+      changed_when: false
+
+    - name: Add Doppler GPG key
+      ansible.builtin.get_url:
+        url: https://packages.doppler.com/public/cli/gpg.41D107B7AB5F1050.key
+        dest: /etc/apt/keyrings/doppler.asc
+        mode: '0644'
+      when: doppler_check.rc != 0
+
+    - name: Add Doppler APT repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/doppler.asc] https://packages.doppler.com/public/cli/debian any main"
+        state: present
+      when: doppler_check.rc != 0
+
+    - name: Install Doppler CLI
+      ansible.builtin.apt:
+        name: doppler
+        state: latest
+        update_cache: true
+      when: doppler_check.rc != 0
+
+    # ==========================================
+    # VERIFICATION & VERSION CAPTURE
+    # ==========================================
+
+    - name: Check Docker daemon status & version
+      ansible.builtin.command: docker --version
+      register: docker_version
+      failed_when: false
+      changed_when: false
+      become: false
+
+    - name: Verify Task CLI version
+      ansible.builtin.command: task --version
+      register: task_version
+      failed_when: false
+      changed_when: false
+      become: false
+
+    - name: Verify Doppler CLI version
+      ansible.builtin.command: doppler --version
+      register: doppler_version
+      failed_when: false
+      changed_when: false
+      become: false
+
+    # ==========================================
+    # POST-DEPLOYMENT SUMMARY REPORT
+    # ==========================================
+
+    - name: Display Deployment Summary & Installed Versions
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "      DEPLOYMENT COMPLETED SUCCESSFULLY    "
+          - "=========================================="
+          - "Docker  : {{ docker_version.stdout if docker_version.rc == 0 else 'Not installed' }}"
+          - "Task    : {{ task_version.stdout if task_version.rc == 0 else 'Not installed' }}"
+          - "Doppler : {{ doppler_version.stdout if doppler_version.rc == 0 else 'Not installed' }}"
+          - "=========================================="
