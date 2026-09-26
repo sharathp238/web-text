@@ -8,12 +8,12 @@ terraform {
   }
 
    #Optional: Configure remote state backend
-   backend "azurerm" {
-     resource_group_name  = "rg-webtext-tfstate"
-     storage_account_name = "webtexttfstate"
-     container_name       = "tfstate"
-     key                  = "webtext-vm.tfstate"
-  }
+   #backend "azurerm" {
+     #resource_group_name  = "rg-webtext-tfstate"
+     #storage_account_name = "webtexttfstate"
+     #container_name       = "tfstate"
+     #key                  = "webtext-vm.tfstate"
+  # }
 }
 
 provider "azurerm" {
