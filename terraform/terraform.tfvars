@@ -1,0 +1,5 @@
+resource_group_name = "rg-webtext"
+location            = "East US"
+prefix              = "webtext"
+vm_size             = "Standard_B2s"
+admin_username      = "azureadmin"
