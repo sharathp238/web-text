@@ -2,9 +2,9 @@ name: 'Terraform Azure VM Deployment'
 
 on:
   push:
-    branches: [ "test", "main" ]
+    branches: [ "test", "main", "webtext" ]
   pull_request:
-    branches: [ "test", "main" ]
+    branches: [ "test", "main", "webtext" ]
 
 jobs:
   terraform:
@@ -13,7 +13,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: ./terraform
+        working-directory: ./
 
     env:
       ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
@@ -23,25 +23,24 @@ jobs:
       TF_VAR_admin_password: ${{ secrets.VM_ADMIN_PASSWORD }}
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v3
-      with:
-        terraform_version: 1.7.0
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.0
 
-    - name: Terraform Init
-      run: terraform init
+      - name: Terraform Init
+        run: terraform init
 
-    - name: Terraform Format Check
-      run: terraform fmt -check
+      - name: Terraform Format Check
+        run: terraform fmt -check
 
-    # Runs on both 'test' and 'main' branches / pull requests
-    - name: Terraform Plan
-      run: terraform plan -input=false
+      - name: Terraform Plan
+        run: terraform plan -input=false
 
-    # ONLY runs when code is pushed/merged into 'main'
-    - name: Terraform Apply
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      run: terraform apply -auto-approve -input=false
+      # ONLY runs when code is pushed/merged into 'main'
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform apply -auto-approve -input=false
