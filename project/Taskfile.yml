@@ -1,0 +1,75 @@
+version: '3'
+
+# Load environment variables from external file
+dotenv: ['.env']
+
+vars:
+  IMAGE_NAME: webtext-app
+  CONTAINER_NAME: webtext-container
+  PORT: 8081
+
+tasks:
+  build:
+    desc: Build the webtext-app Docker image
+    cmds:
+      - docker build --no-cache -t {{.IMAGE_NAME}}:latest .
+
+  lint:
+    desc: Run linter against Dockerfile using Hadolint
+    cmds:
+      - docker run --rm -i hadolint/hadolint < Dockerfile
+
+  deploy:
+    desc: Run latest built container with WEBTEXT="Development deploy"
+    cmds:
+      - task: clean
+      - docker run -d -p {{.PORT}}:80 -e WEBTEXT="Development deploy" --name {{.CONTAINER_NAME}} {{.IMAGE_NAME}}:latest
+
+  test:
+    desc: Verify response from local container and check container health status
+    cmds:
+      - echo "Waiting for container health check..."
+      - sleep 7
+      - |
+        RESPONSE=$(curl -s http://localhost:{{.PORT}})
+        EXPECTED="Development deploy"
+
+        CONTAINER_ID=$(docker ps -q -f "name={{.CONTAINER_NAME}}")
+        HEALTH_STATUS=$(docker inspect --format='{{`{{.State.Health.Status}}`}}' "$CONTAINER_ID" 2>/dev/null)
+
+        echo "Container ID: $CONTAINER_ID"
+        echo "Container Health Status: ${HEALTH_STATUS:-none}"
+
+        if [ "$HEALTH_STATUS" = "healthy" ] && [ "$RESPONSE" = "$EXPECTED" ]; then
+          echo "TEST PASSED: Container is healthy and response matches '$EXPECTED'."
+        else
+          echo "TEST FAILED: Health Status is '${HEALTH_STATUS:-none}' \vert{} Response: '$RESPONSE'"
+          exit 1
+        fi
+
+  clean:
+    desc: Stop and remove the application container
+    ignore_error: true
+    cmds:
+      - docker stop {{.CONTAINER_NAME}}
+      - docker rm {{.CONTAINER_NAME}}
+
+  cicd:
+    desc: Run lint, build, deploy, and test
+    cmds:
+      - task: lint
+      - task: build
+      - task: deploy
+      - task: test
+
+  deploywithdoppler:
+    desc: Deploy the container using WEBTEXT secret fetched from Doppler
+    deps: [clean, build]
+    cmds:
+      - |
+        if [ -z "$DOPPLER_TOKEN" ]; then
+          echo "ERROR: DOPPLER_TOKEN is not set in .env or environment."
+          exit 1
+        fi
+        WEBTEXT_VAL=$(doppler secrets get WEBTEXT --plain)
+        docker run -d -p {{.PORT}}:80 -e WEBTEXT="$WEBTEXT_VAL" --name {{.CONTAINER_NAME}} {{.IMAGE_NAME}}:latest
