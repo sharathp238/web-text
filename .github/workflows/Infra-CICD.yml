@@ -37,10 +37,15 @@ jobs:
       - name: Terraform Format Check
         run: terraform fmt -check
 
+         # Terraform Plan Step
       - name: Terraform Plan
+        env:
+          TF_VAR_ssh_public_key: ${{ secrets.VM_SSH_PUBLIC_KEY }}
         run: terraform plan -input=false
 
-      # ONLY runs when code is pushed/merged into 'main'
+      # Terraform Apply Step
       - name: Terraform Apply
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/webtext' && github.event_name == 'push'
+        env:
+          TF_VAR_ssh_public_key: ${{ secrets.VM_SSH_PUBLIC_KEY }}
         run: terraform apply -auto-approve -input=false
