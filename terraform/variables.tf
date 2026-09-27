@@ -22,8 +22,8 @@ variable "ssh_public_key" {
   default     = ""
 }
 
-variable "ssh_public_key_path" {
-  type        = string
-  default     = "~/.ssh/id_rsa.pub"
-  description = "Path to local SSH public key file if key string is not provided directly"
-}
+#variable "ssh_public_key_path" {
+  #type        = string
+  #default     = "~/.ssh/id_rsa.pub"
+  #description = "Path to local SSH public key file if key string is not provided directly"
+#}
