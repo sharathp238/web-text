@@ -1,29 +1,34 @@
-variable "resource_group_name" {
+variable "subscription_id" {
+  description = "Azure subscription ID"
   type        = string
-  default     = "webtext-rg"
-  description = "Name of the Azure Resource Group"
+}
+
+variable "prefix" {
+  description = "Prefix used when naming resources"
+  type        = string
+  default     = "webtext"
 }
 
 variable "location" {
+  description = "Azure region to deploy into"
   type        = string
-  default     = "East US"
-  description = "Azure region for resource deployment"
+  default     = "Denmark East"
+}
+
+variable "vm_size" {
+  description = "Size of the Azure VM"
+  type        = string
+  default     = "Standard_B1s"
 }
 
 variable "admin_username" {
+  description = "Admin username for the VM"
   type        = string
   default     = "azureuser"
-  description = "Admin username for the VM"
 }
 
-variable "ssh_public_key" {
+variable "ssh_public_key_path" {
+  description = "Path to the local SSH public key used to log into the VM"
   type        = string
-  description = "SSH Public Key string for VM authentication"
-  default     = ""
+  default     = "~/.ssh/id_rsa_azure.pub"
 }
-
-#variable "ssh_public_key_path" {
-  #type        = string
-  #default     = "~/.ssh/id_rsa.pub"
-  #description = "Path to local SSH public key file if key string is not provided directly"
-#}
