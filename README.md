@@ -13,7 +13,7 @@ This repository contains Terraform configurations and a GitHub Actions CI/CD pip
 .
 ├── .github/
 │   └── workflows/
-│       └── terraform.yml    # GitHub Actions CI/CD pipeline
+│       └── Infra-CICD.yml    # GitHub Actions CI/CD pipeline
 ├── terraform/
 │   ├── main.tf              # Main Terraform resources (VNet, Subnet, NIC, VM)
 │   ├── variables.tf         # Input variable definitions
@@ -67,7 +67,7 @@ In your repository settings (**Settings > Secrets and variables > Actions**), ad
 
 ## CI/CD Pipeline (GitHub Actions)
 
-The workflow defined in `.github/workflows/terraform.yml` runs automatically on `push` and `pull_request` to the `webtext`, `test`, and `main` branches, as well as manually via `workflow_dispatch`.
+The workflow defined in `.github/workflows/Infra-CICD.yml` runs automatically on `push` and `pull_request` to the `webtext`, `test`, and `main` branches, as well as manually via `workflow_dispatch`.
 
 ### Pipeline Execution Steps:
 
