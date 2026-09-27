@@ -6,29 +6,48 @@ on:
   pull_request:
     branches: [ "test", "main", "webtext" ]
 
+# Prevent simultaneous runs on the same branch to avoid state locks
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Required permissions for OIDC authentication and PR commenting
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
 jobs:
   terraform:
     name: 'Terraform'
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: ./terraform
-    
+
     env:
       ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
-      ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+      ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}  # (Optional: Remove if using OIDC)
       ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
       ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
-      TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+      TF_VAR_ssh_public_key: ${{ secrets.VM_SSH_PUBLIC_KEY }}
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Log in to Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.7.0
+          terraform_version: '1.7.0'
           terraform_wrapper: false
 
       - name: Terraform Init
@@ -37,15 +56,21 @@ jobs:
       - name: Terraform Format Check
         run: terraform fmt -check
 
-         # Terraform Plan Step
-      - name: Terraform Plan
-        env:
-          TF_VAR_ssh_public_key: ${{ secrets.VM_SSH_PUBLIC_KEY }}
-        run: terraform plan -input=false
+      - name: Terraform Validate
+        run: terraform validate
 
-      # Terraform Apply Step
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Post Plan to PR Summary
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "### Terraform Plan Summary >> $GITHUB_STEP_SUMMARY
+          echo '```hcl' >> $GITHUB_STEP_SUMMARY
+          terraform show -no-color tfplan >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
       - name: Terraform Apply
         if: github.ref == 'refs/heads/webtext' && github.event_name == 'push'
-        env:
-          TF_VAR_ssh_public_key: ${{ secrets.VM_SSH_PUBLIC_KEY }}
-        run: terraform apply -auto-approve -input=false
+        run: terraform apply -auto-approve tfplan
