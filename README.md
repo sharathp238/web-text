@@ -248,6 +248,6 @@ When you are finished testing and want to destroy all provisioned Azure resource
 
 ```bash
 cd ../terraform
-terraform destroy -var="admin_password=YourSecurePassword123!"
+terraform destroy -var="ssh_public_key=$(cat ~/.ssh/id_rsa.pub)"
 
 ```
