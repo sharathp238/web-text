@@ -1,6 +1,4 @@
----
 
-```markdown
 # Azure Infrastructure with Terraform
 
 This directory contains the Terraform configurations for provisioning and managing an Azure Linux Virtual Machine using SSH key-based authentication, along with its associated networking infrastructure (Virtual Network, Subnet, and Network Interface).
