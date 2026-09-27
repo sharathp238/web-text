@@ -1,5 +1,9 @@
-resource_group_name = "rg-webtext"
+resource_group_name = "webtext-rg"
 location            = "East US"
-prefix              = "webtext"
-vm_size             = "Standard_B2s"
-admin_username      = "azureadmin"
+admin_username      = "azureuser"
+
+# Provide your SSH public key string directly:
+# ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ..."
+
+# OR specify the path to your public key file:
+ssh_public_key_path = "~/.ssh/id_rsa.pub"
