@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.7.0"
+  required_version = ">= 1.3.0"
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
@@ -12,70 +12,58 @@ provider "azurerm" {
   features {}
 }
 
-# Resource Group
+# 1. Resource Group
 resource "azurerm_resource_group" "rg" {
-  name     = var.resource_group_name
-  location = var.location
+  name     = "rg-ansible-target"
+  location = "Central India" # Changed to Central India for higher B-series capacity
 }
 
-# Virtual Network
+# 2. Virtual Network & Subnet
 resource "azurerm_virtual_network" "vnet" {
-  name                = "webtext-vnet"
+  name                = "vnet-ansible"
   address_space       = ["10.0.0.0/16"]
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 }
 
-# Subnet
 resource "azurerm_subnet" "subnet" {
-  name                 = "webtext-subnet"
+  name                 = "snet-ansible"
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
-  address_prefixes     = ["10.0.2.0/24"]
+  address_prefixes     = ["10.0.1.0/24"]
 }
 
-# Public IP
-resource "azurerm_public_ip" "public_ip" {
-  name                = "webtext-pip"
+# 3. Public IP Address
+resource "azurerm_public_ip" "pip" {
+  name                = "pip-ansible-vm"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-  allocation_method   = "Dynamic"
+  allocation_method   = "Static"
+  sku                 = "Standard"
 }
 
-# Network Security Group (Allow SSH and Port 80)
+# 4. Network Security Group (Allow SSH on port 22)
 resource "azurerm_network_security_group" "nsg" {
-  name                = "webtext-nsg"
+  name                = "nsg-ansible"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 
   security_rule {
-    name                       = "SSH"
+    name                       = "AllowSSH"
     priority                   = 1001
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "22"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-
-  security_rule {
-    name                       = "HTTP"
-    priority                   = 1002
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "80"
-    source_address_prefix      = "*"
+    source_address_prefix      = "*" # Restrict to your local IP in production
     destination_address_prefix = "*"
   }
 }
 
-# Network Interface
+# 5. Network Interface & NSG Association
 resource "azurerm_network_interface" "nic" {
-  name                = "webtext-nic"
+  name                = "nic-ansible-vm"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 
@@ -83,32 +71,34 @@ resource "azurerm_network_interface" "nic" {
     name                          = "internal"
     subnet_id                     = azurerm_subnet.subnet.id
     private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = azurerm_public_ip.public_ip.id
+    public_ip_address_id          = azurerm_public_ip.pip.id
   }
+
+  depends_on = [
+    azurerm_subnet.subnet
+  ]
 }
 
-# Connect NSG to NIC
 resource "azurerm_network_interface_security_group_association" "nsg_assoc" {
   network_interface_id      = azurerm_network_interface.nic.id
   network_security_group_id = azurerm_network_security_group.nsg.id
 }
 
-# Linux Virtual Machine (SSH-only Authentication)
+# 6. Linux Virtual Machine
 resource "azurerm_linux_virtual_machine" "vm" {
-  name                            = "webtext-vm"
-  resource_group_name             = azurerm_resource_group.rg.name
-  location                        = azurerm_resource_group.rg.location
-  size                            = "Standard_B1s"
-  admin_username                  = var.admin_username
-  disable_password_authentication = true
+  name                = "webapp"
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  size                = "Standard_B1s" # Lowest cost VM
+  admin_username      = "azureuser"
 
   network_interface_ids = [
     azurerm_network_interface.nic.id,
   ]
 
   admin_ssh_key {
-    username   = var.admin_username
-    public_key = var.ssh_public_key != "" ? var.ssh_public_key : file(var.ssh_public_key_path)
+    username   = "azureuser"
+    public_key = file(pathexpand("~/.ssh/id_rsa_azure.pub"))
   }
 
   os_disk {
@@ -119,7 +109,18 @@ resource "azurerm_linux_virtual_machine" "vm" {
   source_image_reference {
     publisher = "Canonical"
     offer     = "0001-com-ubuntu-server-jammy"
-    sku       = "22_04-lts"
+    sku       = "22_04-lts-gen2"
     version   = "latest"
   }
+}
+
+# 7. Outputs for Ansible Configuration
+output "public_ip_address" {
+  description = "Public IP address of the virtual machine"
+  value       = azurerm_linux_virtual_machine.vm.public_ip_address
+}
+
+output "ssh_connection_command" {
+  description = "Command to SSH into the VM"
+  value       = "ssh -i ~/.ssh/id_rsa_azure azureuser@${azurerm_linux_virtual_machine.vm.public_ip_address}"
 }
