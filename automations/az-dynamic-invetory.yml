@@ -1,0 +1,16 @@
+## pre-requasite azure dynamic inventory plugin should avilable and azure authentication (subscrptionid,clintid,tenant,secret)
+plugin: azure.azcolloction.azure_rm
+auth_source: auto
+##include_vm_resource_groups:
+plain_host_names: yes
+keyed_groups:
+  -prefix: tag
+   key: tags
+  -prefix: rg
+   key: resource_group
+  -prefix: location
+   key: location
+hostvar_expressions:
+  ansible_host: (private_ipv4_address | first) 
+
+##command: ansible-inventory -i az-dynamic-invetory.yml --graph 
